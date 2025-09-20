@@ -1,0 +1,155 @@
+Partie / Evaluation 1 
+Date de remise : Semaine du 13/10/2025 au 17/10/2025 
+Cette partie comporte les éléments suivants : 
+• la construction d’une libraire de sockets en C/C++ 
+• le serveur « Réservation » multi-threads C/C++ tournant sur une machine Linux (et utilisant la 
+librairie de sockets développée) 
+• le client C/C++/Qt capable de communiquer avec ce serveur 
+• la mise en place de la base de données MySQL 
+Sur le schéma global de l’application, cela correspond à : 
+L’application « Client Réservation » 
+C’est grâce à l’application « Client Réservation » (tournant sur une des machines Linux présentes sur les 
+bornes d’accueil de l’hôpital) qu’un patient pourra réserver une consultation avec un médecin. Tout ceci 
+se fera bien sûr via un dialogue avec le « Serveur Réservation ». 
+Pour faciliter le développement de l’application client, l’interface graphique Qt vous sera fournie (lien 
+GitHub : https://github.com/hepl-dacsc/LaboDACSC2025_sources ) 
+3
+UE : Développement d’architectures clients/serveurs et cryptographie (DACSC) 
+Laboratoire – Wagner – Caprasse – 2025-2026 
+Quelques explications : 
+• Avant toute chose, le patient doit s’identifier à l’aide de son nom, prénom et de son numéro de 
+patient (pour simplifier les choses, il s’agira simplement de son identifiant en base de données). 
+Deux cas de figure peuvent se présenter au moment du clic sur le bouton « Login » :  
+o Le patient n’existe pas encore en BD. Il devra alors cocher « Nouveau Patient ». Le serveur 
+lui attribuera donc un numéro de patient (un id donc) qui lui servira de « mot de passe » 
+o Le patient existe déjà en BD. Il ne devra pas cocher « Nouveau Patient ». Il s’identifiera 
+donc avec son nom, prénom et numéro de client (son id donc). 
+Une fois entré « en session », le patient aura accès aux boutons « Logout », « Lancer la 
+recherche » et « Réserver » 
+• Un clic sur le bouton « Lancer la recherche » récupérera la spécialité, le médecin et la fourchette 
+de dates correspondant aux critères de recherches du patient. Le résultat de la recherche (les 
+consultations disponibles, c’est-à-dire pas déjà réservées par d’autres patients) apparaîtra dans la 
+table du dessous. 
+• Un clic sur le bouton « Réserver » récupérera la consultation sélectionnée dans la table. Après 
+demande de la raison de la consultation (via une boîte de dialogue), la consultation lui sera 
+attribuée et la raison stockée en BD. 
+L’application « Client Réservation » permet donc de modifier une consultation présente en BD (en lui 
+affectant un patient et une raison) mais pas de créer une nouvelle consultation. Elle ne permet pas non 
+plus d’annuler une réservation.  
+La base de données 
+Il s’agira d’une base de données MySQL. Vous pouvez la créer vous-même ou alors vous pouvez 
+utiliser le programme CreationBD fourni. Ce programme (à utiliser sur la VM Oracle Linux fournie) 
+créera les tables patients, specialties, doctors et consultations et les pré-remplira. Les autres tables sont à 
+votre charge. Voici un bref descriptif de ces tables : 
+Nom Table 
+consultations 
+Champs 
+id (clé primaire), doctor_id (clé étrangère ne pouvant pas être NULL), patient_id 
+(clé étrangère pouvant être NULL), date, hour, reason 
+doctors 
+id (clé primaire), specialty_id (clé étrangère ne pouvant pas être NULL), 
+last_name, first_name 
+specialties 
+id (clé primaire), name 
+id, last_name, first_name, birth_date 
+patients 
+reports 
+id, description, … → à vous de voir 
+… 
+… 
+La manipulation de la base de données se fera en utilisant l’API C/MySQL utilisée en BAC 2 et décrite 
+dans le syllabus « Système d’exploitation Linux – Programmation avancée en C », annexe 2. 
+La librairie de sockets 
+Dans un premier temps, on vous demande de développer une petite librairie C ou C++ de sockets 
+(fournie sous forme de fichiers .cpp et .h) dont les caractéristiques sont : 
+• elle doit être générique : on ne doit pas voir apparaître la notion de « patients » ou de 
+« consultations » dans le prototype des fonctions. Elle doit pouvoir être réutilisée telle quelle dans 
+une autre application 
+4
+UE : Développement d’architectures clients/serveurs et cryptographie (DACSC) 
+Laboratoire – Wagner – Caprasse – 2025-2026 
+• elle doit être abstraite : l’utilisation de votre librairie doit permettre d’éviter de voir apparaître les 
+structures systèmes du genre « sockaddr_in » dans les programmes qui utilisent votre librairie 
+Conseils / propositions pour le développement : 
+• Une proposition de prototypes de fonctions pour votre libraire est fournie dans un des pdf de 
+théorie (« Communications Réseaux en C ») 
+• Vous avez le droit de développer cette librairie en C++. Néanmoins, on ne vous l’impose/le 
+conseille pas car le développement d’une librairie correcte en C++ vous prendra plus de temps 
+qu’en C 
+• Des tests élémentaires de votre librairie sont plus que bienvenus avant de l’embarquer dans votre 
+client Qt ou votre serveur Réservation. 
+Le serveur Réservation 
+Le « Serveur Réservation » devra être un serveur  
+• de connexions (et non de requêtes) 
+• multi-threads écrit en C (threads POSIX), 
+• implémentant le modèle « pool de threads » 
+• attendant sur le port PORT_RESERVATION 
+• tournant sur une machine Linux (pouvant être la VM Oracle Linux dont vous disposez déjà) 
+Le nombre de threads du pool ainsi que le PORT_RESERVATION devront être lus dans un fichier 
+(texte) de configuration du serveur. 
+Vous devez savoir que, dans la seconde partie, un client Java de type « administrateur » se connectera 
+sur un autre port du serveur Réservation afin de récupérer la liste des patients (ainsi que leur adresse IP) 
+connectés sur les différentes bornes de réservation de l’hôpital. Il serait donc judicieux de mettre en place 
+directement un système de mémorisation de ces informations.  
+Le protocole de communication entre le « Client Réservation » et le « Serveur Réservation » s’appellera 
+« Consultation Booking Protocol » (CBP). Les différentes commandes sont décrites ci-dessous : 
+Serveur Réservation -- Protocole CBP – PORT_RESERVATION 
+Commande 
+Requête 
+Réponse 
+« LOGIN » 
+Nom, prénom, 
+no patient (ou 
+pas), nouveau 
+patient 
+Actions / Explications 
+Oui ou non 
+(accompagné du 
+numéro de 
+patient si 
+nouveau) 
+« LOGOUT » 
+… 
+Vérification de l’existence du 
+patient sur base du nom, 
+prénom et no patient / création 
+d’un nouveau patient en BD 
+… 
+« GET_SPECIALTIES »  
+… 
+Liste des 
+spécialités (id, 
+name) 
+« GET_DOCTORS »  
+Récupération des spécialités 
+médicales en BD 
+Liste des 
+médecins (id, 
+lastName, 
+first_name) 
+Récupération des médecins en 
+BD 
+5
+UE : Développement d’architectures clients/serveurs et cryptographie (DACSC) 
+Laboratoire – Wagner – Caprasse – 2025-2026 
+ 
+6 
+« SEARCH_CONSULTATIONS » Spécialité, 
+médecin, date 
+début, date de 
+fin 
+Liste des 
+consultations 
+(id, médecin, 
+spécialité, date, 
+heure) 
+Récupération des 
+consultations disponibles en 
+BD et répondant aux critères 
+reçus 
+« BOOK_CONSULTATION » consultationId, 
+reason 
+Oui ou non Mise à jour BD de la 
+consultation choisie (id du 
+patient + raison). Si plus 
+dispo, retour « non » 
