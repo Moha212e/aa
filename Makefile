@@ -11,9 +11,9 @@ UTIL_DIR = util
 
 # Source files
 BD_SRC = $(BD_DIR)/CreationBD.cpp
-CLIENT_SRC = $(CLIENT_DIR)/main.cpp $(CLIENT_DIR)/mainwindowclientconsultationbooker.cpp $(CLIENT_DIR)/moc_mainwindowclientconsultationbooker.cpp socket/socket.cpp
+CLIENT_SRC = $(CLIENT_DIR)/main.cpp $(CLIENT_DIR)/mainwindowclientconsultationbooker.cpp $(CLIENT_DIR)/moc_mainwindowclientconsultationbooker.cpp socket/socket.cpp $(UTIL_DIR)/name.cpp
 SOCKET_SRC = $(SOCKET_DIR)/socket.cpp
-SERVEUR_SRC = $(SERVEUR_DIR)/serveur.cpp
+SERVEUR_SRC = $(SERVEUR_DIR)/serveur.cpp $(SERVEUR_DIR)/database.cpp $(UTIL_DIR)/name.cpp
 UTIL_HEADERS = $(UTIL_DIR)/name.h
 
 # Output binaries
@@ -37,7 +37,7 @@ $(BD_BIN): $(BD_SRC)
 $(CLIENT_BIN): $(CLIENT_SRC) $(UTIL_HEADERS)
 	$(CXX) -fPIC -o $@ $^ $(QT_FLAGS)
 
-$(SERVEUR_BIN): $(SERVEUR_SRC) $(SOCKET_SRC) $(UTIL_HEADERS)
+$(SERVEUR_BIN): $(SERVEUR_SRC) $(SOCKET_SRC)
 	$(CXX) -o $@ $^ -lpthread $(MYSQL_CFLAGS) -m64 -L/usr/lib64/mysql $(MYSQL_LIBS)
 
 clean:

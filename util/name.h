@@ -1,39 +1,47 @@
+#ifndef NAME_H
+#define NAME_H
+
 // Protocole de communication - Constantes
-const char* LOGIN_OK = "LOGIN_OK;";
-const char* LOGIN_FAIL = "LOGIN_FAIL;";
-const char* LOGIN_EXIST = "LOGIN_EXIST;";
-const char* LOGIN_NEW = "LOGIN_NEW;";
-const char* NOT_FOUND = "NOT_FOUND";
-const char* TOUTES = "--- TOUTES ---";
-const char* TOUS = "--- TOUS ---";
+extern const char* LOGIN_OK;
+extern const char* LOGIN_FAIL;
+extern const char* LOGIN_EXIST;
+extern const char* LOGIN_NEW;
+extern const char* NOT_FOUND;
+extern const char* TOUTES;
+extern const char* TOUS;
 
 // Messages de recherche
-const char* SEARCH = "SEARCH;";
-const char* SEARCH_FAIL = "SEARCH_FAIL;";
-const char* SEARCH_OK = "SEARCH_OK;";
+extern const char* SEARCH;
+extern const char* SEARCH_FAIL;
+extern const char* SEARCH_OK;
 
 // Messages de spécialités
-const char* SPECIALTIES_FAIL = "SPECIALTIES_FAIL;";
-const char* SPECIALTIES_OK = "SPECIALTIES_OK;";
-const char* GET_SPECIALTIES = "GET_SPECIALTIES";
+extern const char* SPECIALTIES_FAIL;
+extern const char* SPECIALTIES_OK;
+extern const char* GET_SPECIALTIES;
 
 // Messages de médecins
-const char* DOCTORS_FAIL = "DOCTORS_FAIL;";
-const char* DOCTORS_OK = "DOCTORS_OK;";
-const char* GET_DOCTORS = "GET_DOCTORS;";
+extern const char* DOCTORS_FAIL;
+extern const char* DOCTORS_OK;
+extern const char* GET_DOCTORS;
 
 // Messages de réservation
-const char* BOOK_CONSULTATION = "BOOK_CONSULTATION;";
-const char* BOOK_OK = "BOOK_OK";
-const char* BOOK_FAIL = "BOOK_FAIL;";
+extern const char* BOOK_CONSULTATION;
+extern const char* BOOK_OK;
+extern const char* BOOK_FAIL;
 
 // Messages d'erreur
-const char* FORMAT = "FORMAT";
-const char* UNKNOWN_CMD = "UNKNOWN_CMD";
-const char* DB = "DB";
-const char* INSERT = "INSERT";
-const char* ALREADY_BOOKED = "ALREADY_BOOKED";
-const char* UPDATE_FAILED = "UPDATE_FAILED";
+extern const char* FORMAT;
+extern const char* UNKNOWN_CMD;
+extern const char* DB;
+extern const char* INSERT;
+extern const char* ALREADY_BOOKED;
+extern const char* UPDATE_FAILED;
 
+// Configuration DB
+extern const char* DB_HOST;
+extern const char* DB_USER;
+extern const char* DB_PASS;
+extern const char* DB_NAME;
 
-const char* DB_HOST = "DB_HOST";
+#endif // NAME_H
