@@ -17,7 +17,7 @@ const char* SEARCH_OK = "SEARCH_OK;";
 // Messages de spécialités
 const char* SPECIALTIES_FAIL = "SPECIALTIES_FAIL;";
 const char* SPECIALTIES_OK = "SPECIALTIES_OK;";
-const char* GET_SPECIALTIES = "GET_SPECIALTIES";
+const char* GET_SPECIALTIES = "GET_SPECIALTIES;";
 
 // Messages de médecins
 const char* DOCTORS_FAIL = "DOCTORS_FAIL;";

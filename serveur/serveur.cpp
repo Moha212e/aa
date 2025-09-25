@@ -26,7 +26,7 @@ const int LOGIN_NEW_LENGTH = 10;  // "LOGIN_NEW;" = 10 caractères
 const int LOGIN_EXIST_LENGTH = 12; // "LOGIN_EXIST;" = 12 caractères
 const int SEARCH_LENGTH = 7;       // "SEARCH;" = 7 caractères
 const int GET_DOCTORS_LENGTH = 12; // "GET_DOCTORS;" = 12 caractères
-const int BOOK_CONSULTATION_LENGTH = 18; // "BOOK_CONSULTATION;" = 18 caractères
+const int BOOK_CONSULTATION_LENGTH = 19; // "BOOK_CONSULTATION;" = 19 caractères
 
 // Déclarations de variables globales
 struct ServerConfig {
@@ -36,7 +36,7 @@ struct ServerConfig {
 
 struct ClientTask { 
     int socket; 
-    char ip[INET_ADDRSTRLEN]; 
+    char ip[INET_ADDRSTRLEN]; // 16 caractères max pour l'ip
 };
 
 static ServerConfig config;
@@ -45,67 +45,69 @@ static queue<ClientTask> tasks; // file de tâches à traiter
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 
-// Variables de parsing (réutilisables)
-static size_t pos, pos1, pos2, pos3;
-static string lastName, firstName, specialty, doctor, startDate, endDate, reason, message;
-static int id, consultationId, patientId, bytesReceived;
-static bool clientConnected, configLoaded, dbConfigLoaded;
+// Variables globales du serveur
+static bool configLoaded, dbConfigLoaded;
 static char buffer[BUFFER_SIZE], ipClient[INET_ADDRSTRLEN];
 static string line, key, val;
-static int serverSocket, clientSocket, i;
+static int serverSocket, clientSocket;
 
 
 static void trim(string &s) {
     while(!s.empty() && (s.back()=='\n' || s.back()=='\r' || s.back()==' '|| s.back()=='\t')) {
         s.pop_back();
     }
-    i=0; 
-    while(i<s.size() && (s[i]==' '||s[i]=='\t')) {
+    int i = 0; 
+    while(i < s.size() && (s[i]==' '||s[i]=='\t')) {
         ++i; 
     }
-    s.erase(0,i);
+    s.erase(0, i);
 }
 
-// Fonction simple pour vérifier si on a trouvé quelque chose
-static bool found(size_t pos, size_t maxLen) {
-    return pos < maxLen;
-}
 
 // Connexion à la base de données
 static MYSQL* connectToDatabase() {
     DatabaseConfig dbConfig;
-    const char* configPaths[] = {
-        "conf/serveur.conf",
-        "../conf/serveur.conf", 
-        "serveur.conf"
-    };
     
-    for(i = 0; i < 3; i++) {
-        if(DB::loadConfig(configPaths[i], dbConfig)) {
-            return DB::openConnection(dbConfig);
-        }
+    if(DB::loadConfig("../conf/serveur.conf", dbConfig)) {
+        return DB::openConnection(dbConfig);
     }
     return nullptr;
 }
 
-// Fonction pour déterminer le type de message
 static int getMessageType(const string& message) {
-    if(message.find(LOGIN_NEW) == 0) return 1;
-    if(message.find(LOGIN_EXIST) == 0) return 2;
-    if(message.find(SEARCH) == 0) return 3;
-    if(message.find(GET_SPECIALTIES) == 0) return 4;
-    if(message.find("GET_DOCTORS;") == 0) return 5;
-    if(message.find("BOOK_CONSULTATION;") == 0) return 6;
+    if (message.empty()) return 0;
+    
+    switch (message[0]) {
+        case 'L': // LOGIN_NEW ou LOGIN_EXIST
+            if (message.find(LOGIN_NEW) == 0) return 1;
+            if (message.find(LOGIN_EXIST) == 0) return 2;
+            break;
+        case 'S': // SEARCH
+            if (message.find(SEARCH) == 0) return 3;
+            break;
+        case 'G': // GET_SPECIALTIES ou GET_DOCTORS
+            if (message.find(GET_SPECIALTIES) == 0) return 4;
+            if (message.find(GET_DOCTORS) == 0) return 5;
+            break;
+        case 'B': // BOOK_CONSULTATION
+            if (message.find(BOOK_CONSULTATION) == 0) return 6;
+            break;
+    }
     return 0; // Inconnu
 }
 
 // Traitement d'un message client
 static void processMessage(MYSQL* con, int socket, const string& message) {
+    // Variables locales pour éviter les conditions de course
+    size_t pos, pos1, pos2, pos3;
+    string lastName, firstName, specialty, doctor, startDate, endDate, reason;
+    int id, consultationId, patientId;
+    
     switch(getMessageType(message)) {
         case 1: { // LOGIN_NEW
             // Format: LOGIN_NEW;NOM;PRENOM
             pos = message.find(';', LOGIN_NEW_LENGTH);
-            if(found(pos, message.length())) {
+            if(pos < message.length()) {
                 lastName = message.substr(LOGIN_NEW_LENGTH, pos - LOGIN_NEW_LENGTH);
                 firstName = message.substr(pos + 1);
                 DB::handleLoginNew(con, socket, lastName, firstName);
@@ -119,7 +121,7 @@ static void processMessage(MYSQL* con, int socket, const string& message) {
             // Format: LOGIN_EXIST;ID;NOM;PRENOM
             pos1 = message.find(';', LOGIN_EXIST_LENGTH);
             pos2 = message.find(';', pos1 + 1);
-            if(found(pos1, message.length()) && found(pos2, message.length())) {
+            if(pos1 < message.length() && pos2 < message.length()) {
                 id = atoi(message.substr(LOGIN_EXIST_LENGTH, pos1 - LOGIN_EXIST_LENGTH).c_str());
                 lastName = message.substr(pos1 + 1, pos2 - pos1 - 1);
                 firstName = message.substr(pos2 + 1);
@@ -135,7 +137,7 @@ static void processMessage(MYSQL* con, int socket, const string& message) {
             pos1 = message.find(';', SEARCH_LENGTH);
             pos2 = message.find(';', pos1 + 1);
             pos3 = message.find(';', pos2 + 1);
-            if(found(pos1, message.length()) && found(pos2, message.length()) && found(pos3, message.length())) {
+            if(pos1 < message.length() && pos2 < message.length() && pos3 < message.length()) {
                 specialty = message.substr(SEARCH_LENGTH, pos1 - SEARCH_LENGTH);
                 doctor = message.substr(pos1 + 1, pos2 - pos1 - 1);
                 startDate = message.substr(pos2 + 1, pos3 - pos2 - 1);
@@ -153,8 +155,13 @@ static void processMessage(MYSQL* con, int socket, const string& message) {
             
         case 5: { // GET_DOCTORS
             // Format: GET_DOCTORS;SPECIALTY
-            specialty = message.substr(GET_DOCTORS_LENGTH);
-            DB::handleGetDoctors(con, socket, specialty);
+            pos = message.find(';', GET_DOCTORS_LENGTH);
+            if(pos < message.length()) {
+                specialty = message.substr(GET_DOCTORS_LENGTH, pos - GET_DOCTORS_LENGTH);
+                DB::handleGetDoctors(con, socket, specialty);
+            } else {
+                Send(socket, (string(DOCTORS_FAIL) + FORMAT).c_str(), (string(DOCTORS_FAIL) + FORMAT).length());
+            }
             break;
         }
         
@@ -162,7 +169,7 @@ static void processMessage(MYSQL* con, int socket, const string& message) {
             // Format: BOOK_CONSULTATION;CONSULTATION_ID;PATIENT_ID;REASON
             pos1 = message.find(';', BOOK_CONSULTATION_LENGTH);
             pos2 = message.find(';', pos1 + 1);
-            if(found(pos1, message.length()) && found(pos2, message.length())) {
+            if(pos1 < message.length() && pos2 < message.length()) {
                 consultationId = atoi(message.substr(BOOK_CONSULTATION_LENGTH, pos1 - BOOK_CONSULTATION_LENGTH).c_str());
                 patientId = atoi(message.substr(pos1 + 1, pos2 - pos1 - 1).c_str());
                 reason = message.substr(pos2 + 1);
@@ -174,73 +181,65 @@ static void processMessage(MYSQL* con, int socket, const string& message) {
         }
         
         default: // Message inconnu
-            Send(socket, (string(LOGIN_FAIL) + UNKNOWN_CMD).c_str(), (string(LOGIN_FAIL) + UNKNOWN_CMD).length());
             break;
     }
 }
 
 // Traitement d'un client
 static void handleClient(ClientTask task) {
-    printf("Thread traite la connexion de %s (socket %d)\n", task.ip, task.socket);
+    printf("Client connecté: %s (socket %d)\n", task.ip, task.socket);
     
-    // Connexion à la base de données
     MYSQL* con = connectToDatabase();
-    if(!con) {
-        printf("Erreur: Impossible de se connecter à la base de données\n");
+    if (!con) {
+        printf("Erreur DB pour client %s\n", task.ip);
         closeSocket(task.socket);
         return;
     }
     
-    // Boucle de traitement des messages
-    clientConnected = true;
-    
-    while(clientConnected) {
-        bytesReceived = Receive(task.socket, buffer);
-        
-        if(bytesReceived <= 0) {
-            printf("Client %s déconnecté (socket %d)\n", task.ip, task.socket);
-            clientConnected = false;
-        } else {
-            message = string(buffer);
-            printf("Message reçu de %s: %s\n", task.ip, buffer);
-            fflush(stdout);
-            processMessage(con, task.socket, message);
-        }
+    int bytesReceived;
+    while ((bytesReceived = Receive(task.socket, buffer)) > 0) {
+        printf("Requête reçue de %s: %s\n", task.ip, buffer);
+        processMessage(con, task.socket, string(buffer));
     }
     
-    // Nettoyage
+    printf("Client déconnecté: %s (socket %d)\n", task.ip, task.socket);
     DB::closeConnection(con);
     closeSocket(task.socket);
-    printf("Socket %d fermé\n", task.socket);
 }
 
 
-static bool loadConfig(const char* path, ServerConfig &cfg){
-    ifstream in(path);
-    if(!in) {
+static bool loadConfig(ServerConfig &cfg) {
+    const char* configPaths = "../conf/serveur.conf";
+    
+    ifstream in(configPaths);
+    if (!in) {
         return false;
     }
-    while(getline(in,line)){
+    
+    while (getline(in, line)) {
         trim(line);
-        if(line.empty()) {
+        if (line.empty()) {
             continue;
         }
-        pos = line.find('=');
-        if(!found(pos, line.length())) {
+        
+        size_t pos = line.find('=');
+        if (pos == string::npos) {
             continue;
         }
-        key=line.substr(0,pos); 
+        
+        key = line.substr(0, pos);
+        val = line.substr(pos + 1);
         trim(key);
-        val=line.substr(pos+1); 
         trim(val);
-        if(key=="PORT_RESERVATION") {
+        
+        if (key == "PORT_RESERVATION") {
             cfg.portReservation = atoi(val.c_str());
-        }
-        else if(key=="NB_THREADS") {
+        } else if (key == "NB_THREADS") {
             cfg.nbThreads = atoi(val.c_str());
         }
     }
-    return cfg.portReservation>0;
+    
+    return cfg.portReservation > 0;
 }
 
 
@@ -269,63 +268,44 @@ static void* workerThread(void*){
 }
 
 int main(){
-    // Essayer plusieurs chemins possibles pour le fichier de configuration
-    const char* configPaths[] = {
-        "conf/serveur.conf",           // Depuis la racine du projet
-        "../conf/serveur.conf",        // Depuis le répertoire serveur/
-        "serveur.conf"                 // Dans le répertoire courant
-    };
-    
-    configLoaded = false;
-    for(i = 0; i < 3; i++) {
-        if(loadConfig(configPaths[i], config)) {
-            configLoaded = true;
-            break;
-        }
-    }
-    
-    if(!configLoaded){
-        fprintf(stderr, "ERREUR: Impossible de charger la configuration serveur.conf\n");
+    if (!loadConfig(config)) {
         return 1;
     }
-    if(config.nbThreads<=0) {
-        config.nbThreads=4;
-    }
-    printf("Configuration serveur chargée: port=%d threads=%d\n", config.portReservation, config.nbThreads);
 
     serverSocket = ServerSocket(config.portReservation);
-    if(serverSocket<0){ 
-        perror("ServerSocket"); 
+    if (serverSocket < 0) { 
         return 1; 
     }
-    printf("Serveur en écoute sur le port %d\n", config.portReservation);
 
-    // Création du pool
+    printf("Serveur démarré sur le port %d avec %d threads\n", config.portReservation, config.nbThreads);
+
     vector<pthread_t> threads(config.nbThreads);
-    for(i=0;i<config.nbThreads;++i){
+    for (int i = 0; i < config.nbThreads; ++i) {
         pthread_create(&threads[i], nullptr, workerThread, nullptr);
     }
 
-    while(!stop){
-        memset(ipClient, 0, INET_ADDRSTRLEN);
+    while (!stop) {
         clientSocket = AcceptConnection(serverSocket, ipClient);
-        if(clientSocket<0){ 
-            perror("AcceptConnection"); 
+        if (clientSocket < 0) { 
             continue; 
         }
-        printf("Connexion acceptée de %s\n", ipClient);
+        
+        printf("Nouvelle connexion acceptée de %s (socket %d)\n", ipClient, clientSocket);
+        
         pthread_mutex_lock(&mutex);
-        tasks.push({clientSocket,{0}});
-        strncpy(tasks.back().ip, ipClient, INET_ADDRSTRLEN-1);
+        ClientTask newTask;
+        newTask.socket = clientSocket;
+        strncpy(newTask.ip, ipClient, INET_ADDRSTRLEN-1);
+        newTask.ip[INET_ADDRSTRLEN-1] = '\0';
+        tasks.push(newTask);
         pthread_cond_signal(&condition);
         pthread_mutex_unlock(&mutex);
     }
 
-    // Arrêt (non déclenché dans ce squelette)
     stop = true;
     pthread_cond_broadcast(&condition);
-    for(auto &t: threads) {
-        pthread_join(t,nullptr);
+    for (auto &t: threads) {
+        pthread_join(t, nullptr);
     }
     closeSocket(serverSocket);
     return 0;
